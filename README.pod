@@ -1,6 +1,6 @@
 =pod
 
-rex-bundle is a R?ex module to install needed perl modules into a private folder seperated from the system librarys.
+rex-bundle is a R?ex module to install needed perl modules into a private folder separated from the system librarys.
 
 =head2 Dependencies
 
@@ -26,7 +26,7 @@ In your Rexfile use the following commands.
 
  install_to 'vendor/perl'
   
- desk "Check and install dependencies";
+ desc "Check and install dependencies";
  task "deps", sub {
     mod "Mod1";
     mod "Foo::Bar";
