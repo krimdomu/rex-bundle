@@ -29,6 +29,11 @@ sub mod {
    
    $rex_file_dir = getcwd;
 
+   if(!$install_dir) {
+      print STDERR "You have to define install_to in your Rexfile\n";
+      exit 1;
+   }
+
    eval { my $m = $name; $m =~ s{::}{/}g; require "$m.pm"; }; 
    if(! $@) {
       print STDERR "$name is already installed.\n";
