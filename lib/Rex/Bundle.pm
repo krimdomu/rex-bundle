@@ -14,9 +14,11 @@ our $VERSION = '0.1';
 require Exporter;
 use base qw(Exporter);
 
-use vars qw(@EXPORT $install_dir);
+use vars qw(@EXPORT $install_dir $rex_file_dir);
 use LWP::Simple;
 use Cwd qw(getcwd);
+use YAML;
+use Data::Dumper;
 
 @EXPORT = qw(mod install_to);
 
@@ -24,6 +26,14 @@ use Cwd qw(getcwd);
 sub mod {
    my ($name, $version) = @_;
    
+   $rex_file_dir = getcwd;
+
+   eval { my $m = $name; $m =~ s{::}{/}g; require "$m.pm"; }; 
+   if(! $@) {
+      print STDERR "$name is already installed.\n";
+      return;
+   }
+
    my $mod_url = _lookup_module_url($name);
    _download($mod_url);
    my ($file_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?\.(?:tar\.gz|tgz|tar\.bz2|zip))};
@@ -34,6 +44,9 @@ sub mod {
 
    _extract_file($file_name);
    _rename_dir($dir_name, $new_dir);
+
+   { local $_; mod($_) for _get_deps($new_dir); }
+
    _configure($new_dir);
    _make($new_dir);
    _test($new_dir);
@@ -42,6 +55,7 @@ sub mod {
 
 sub install_to {
    $install_dir = shift;
+   lib->import(getcwd . '/' . $install_dir);
 }
 
 # private functions
@@ -62,7 +76,7 @@ sub _download {
 
    my $cwd = getcwd;
    chdir(_work_dir());
-   system("curl -L -O -# http://search.cpan.org$url");
+   _call("curl -L -O -# http://search.cpan.org$url");
    chdir($cwd);
 }
 
@@ -79,7 +93,7 @@ sub _extract_file {
       $cmd = 'tar -xjvf %s';
    }
 
-   system(sprintf($cmd, $file));
+   _call(sprintf($cmd, $file));
    chdir($cwd);
 }
 
@@ -101,15 +115,15 @@ sub _configure {
    chdir(_work_dir() . '/' . $dir);
 
    my $cmd;
-   if(-f "Makefile.PL") {
+   if(-f "Build.PL") {
+      $cmd = 'perl Build.PL';
+   } elsif(-f "Makefile.PL") {
       $cmd = "perl Makefile.PL PREFIX=$cwd/$install_dir INSTALLPRIVLIB=$cwd/$install_dir INSTALLSITELIB=$cwd/$install_dir INSTALLARCHLIB=$cwd/$install_dir INSTALLVENDORARCH=$cwd/$install_dir";
-   } elsif(-f "Build.PL") {
-      die("not supported yet!");
    } else {
       die("not supported");
    }
 
-   system($cmd);
+   _call($cmd);
    die("Error $cmd") if($? != 0);
    chdir($cwd);
 }
@@ -121,15 +135,15 @@ sub _make {
    chdir(_work_dir() . '/' . $dir);
 
    my $cmd;
-   if(-f "Makefile.PL") {
+   if(-f "Build") {
+      $cmd = './Build';
+   } elsif(-f "Makefile") {
       $cmd = "make";
-   } elsif(-f "Build.PL") {
-      die("not supported yet!");
    } else {
       die("not supported");
    }
 
-   system($cmd);
+   _call($cmd);
    die("Error $cmd") if($? != 0);
    chdir($cwd);
 }
@@ -141,15 +155,15 @@ sub _test {
    chdir(_work_dir() . '/' . $dir);
 
    my $cmd;
-   if(-f "Makefile.PL") {
+   if(-f "Build") {
+      $cmd = "./Build test";
+   } elsif(-f "Makefile") {
       $cmd = "make test";
-   } elsif(-f "Build.PL") {
-      die("not supported yet!");
    } else {
       die("not supported");
    }
 
-   system($cmd);
+   _call($cmd);
    die("Error $cmd") if($? != 0);
    chdir($cwd);
 }
@@ -161,15 +175,15 @@ sub _install {
    chdir(_work_dir() . '/' . $dir);
 
    my $cmd;
-   if(-f "Makefile.PL") {
+   if(-f "Build") {
+      $cmd = "./Build install --install_path lib=$cwd/$install_dir --install_path arch=$cwd/$install_dir --install_path script=$cwd/$install_dir/bin --install_path bin=$cwd/$install_dir/bin --install_path bindoc=$cwd/$install_dir/man --install_path libdoc=$cwd/$install_dir/man --install_path libhtml=$cwd/$install_dir/html --install_path binhtml=$cwd/$install_dir/html";
+   } elsif(-f "Makefile") {
       $cmd = "make install";
-   } elsif(-f "Build.PL") {
-      die("not supported yet!");
    } else {
       die("not supported");
    }
 
-   system($cmd);
+   _call($cmd);
    die("Error $cmd") if($? != 0);
    chdir($cwd);
 }
@@ -187,6 +201,47 @@ sub _gen_rnd {
 
 sub _work_dir {
    return $ENV{'HOME'} . '/.rexbundle';
+}
+
+sub _get_deps {
+   my ($dir) = @_;
+
+   
+   my $cwd = getcwd;
+   chdir(_work_dir() . '/' . $dir);
+   my @ret;
+
+   if(-f 'META.yml') {
+      my $yaml = eval { local(@ARGV, $/) = ('META.yml'); $_=<>; $_; };
+      eval {
+         my $struct = Load($yaml);
+         push(@ret, keys %{$struct->{'configure_requires'}});
+         push(@ret, keys %{$struct->{'build_requires'}});
+         push(@ret, keys %{$struct->{'requires'}});
+      };
+
+      if($@) { print STDERR "Error parseing META.yml :(\n"; }
+   } else {
+      # no meta.yml found :(
+      print STDERR "No META.yml found :(\n";
+      @ret = ();
+   }
+
+   chdir($cwd);
+
+   my @needed = grep { ! /^perl$/ } grep { ! eval { my $m = $_; $m =~ s{::}{/}g; require "$m.pm"; 1;} } @ret;
+   print "Found following dependencies: \n";
+   print Dumper(\@needed);
+
+   @needed;
+}
+
+sub _call {
+   my ($cmd) = @_;
+
+   $ENV{'PERL5LIB'} .= ":$rex_file_dir/$install_dir";
+   $ENV{'PERLLIB'} .= ":$rex_file_dir/$install_dir";
+   system($cmd);
 }
 
 if( ! -d _work_dir() ) {
