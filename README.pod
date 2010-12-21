@@ -28,7 +28,7 @@ In your Rexfile use the following commands.
   
  desc "Check and install dependencies";
  task "deps", sub {
-    mod "Mod1";
+    mod "Mod1", url => 'git://...';
     mod "Foo::Bar";
     # ...
  };
