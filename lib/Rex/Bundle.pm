@@ -24,7 +24,8 @@ use Data::Dumper;
 
 # currently only supports $name
 sub mod {
-   my ($name, $version) = @_;
+   my $name = shift;
+   my $opts = { @_ };
    
    $rex_file_dir = getcwd;
 
@@ -34,16 +35,25 @@ sub mod {
       return;
    }
 
-   my $mod_url = _lookup_module_url($name);
-   _download($mod_url);
-   my ($file_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?\.(?:tar\.gz|tgz|tar\.bz2|zip))};
-   my ($dir_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?)\.(?:tar\.gz|tgz|tar\.bz2|zip)};
-
    my $rnd = _gen_rnd();
-   my $new_dir = $dir_name . "-" . $rnd;
 
-   _extract_file($file_name);
-   _rename_dir($dir_name, $new_dir);
+   my($file_name, $dir_name, $new_dir);
+   if(defined $opts->{'url'}) {
+      $new_dir = $name;
+      $new_dir =~ s{::}{-}g;
+      $new_dir .= "-$rnd";
+      _clone_repo($opts->{'url'}, $new_dir);
+   } else {
+      my $mod_url = _lookup_module_url($name);
+      _download($mod_url);
+
+      ($file_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?\.(?:tar\.gz|tgz|tar\.bz2|zip))};
+      ($dir_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?)\.(?:tar\.gz|tgz|tar\.bz2|zip)};
+      $new_dir = $dir_name . "-" . $rnd;
+
+      _extract_file($file_name);
+      _rename_dir($dir_name, $new_dir);
+   }
 
    { local $_; mod($_) for _get_deps($new_dir); }
 
@@ -234,6 +244,30 @@ sub _get_deps {
    print Dumper(\@needed);
 
    @needed;
+}
+
+sub _clone_repo {
+   my($repo, $path) = @_;
+
+   my $cmd = "%s %s %s %s";
+   my @p = ();
+
+   if($repo =~ m/^git/) {
+      @p = qw(git clone);
+      push @p, $repo, $path;
+   } elsif($repo =~ m/^svn/) {
+      @p = qw(svn export);
+      push @p, $repo, $path;
+   } else {
+      die("Repositoryformat not supported: $repo");
+   }
+
+   my $cwd = getcwd;
+   chdir(_work_dir());
+
+   _call(sprintf($cmd, @p));
+
+   chdir($cwd);
 }
 
 sub _call {
