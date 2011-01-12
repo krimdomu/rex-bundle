@@ -71,6 +71,9 @@ sub mod {
 sub install_to {
    $install_dir = shift;
    lib->import(getcwd . '/' . $install_dir);
+   $ENV{'PATH'} = $install_dir . '/bin:' . $ENV{'PATH'};
+   $ENV{'PERL5LIB'} = $install_dir . ':' . ( $ENV{'PERL5LIB'} || '' );
+   $ENV{'PERLLIB'} = $install_dir . ':' . ( $ENV{'PERLLIB'} || '' );
 }
 
 # private functions
