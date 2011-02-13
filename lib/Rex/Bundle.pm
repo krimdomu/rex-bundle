@@ -9,7 +9,7 @@ package Rex::Bundle;
 use strict;
 use warnings;
 
-our $VERSION = '0.1';
+our $VERSION = '0.2';
 
 require Exporter;
 use base qw(Exporter);
