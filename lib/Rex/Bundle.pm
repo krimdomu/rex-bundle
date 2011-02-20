@@ -229,6 +229,8 @@ sub _get_deps {
    chdir(_work_dir() . '/' . $dir);
    my @ret;
 
+   my $found=0;
+
    if(-f 'META.yml') {
       my $yaml = eval { local(@ARGV, $/) = ('META.yml'); $_=<>; $_; };
       eval {
@@ -236,30 +238,34 @@ sub _get_deps {
          push(@ret, keys %{$struct->{'configure_requires'}});
          push(@ret, keys %{$struct->{'build_requires'}});
          push(@ret, keys %{$struct->{'requires'}});
+         $found=1;
       };
 
       if($@) {
          print STDERR "Error parseing META.yml :(\n";
          # fallback and try Makefile.PL
-         if(-f "Makefile.PL") {
-            no strict 'all';
-            no warnings 'all';
-            my $makefile = eval { local(@ARGV, $/) = ("Makefile.PL"); <>; };
-            my ($hash_string) = ($makefile =~ m/WriteMakefile\((.*?)\);/ms);
-            my $make_hash = eval "{$hash_string}";
-            if(exists $make_hash->{"PREREQ_PM"}) {
-               for my $mod (keys %{$make_hash->{"PREREQ_PM"}}) {
-                  push(@ret, $mod);
-               }
-            }
-            use strict;
-            use warnings;
-         }
       }
    } else {
       # no meta.yml found :(
       print STDERR "No META.yml found :(\n";
       @ret = ();
+   }
+
+   if(!$found) {
+      if(-f "Makefile.PL") {
+         no strict 'all';
+         no warnings 'all';
+         my $makefile = eval { local(@ARGV, $/) = ("Makefile.PL"); <>; };
+         my ($hash_string) = ($makefile =~ m/WriteMakefile\((.*?)\);/ms);
+         my $make_hash = eval "{$hash_string}";
+         if(exists $make_hash->{"PREREQ_PM"}) {
+            for my $mod (keys %{$make_hash->{"PREREQ_PM"}}) {
+               push(@ret, $mod);
+            }
+         }
+         use strict;
+         use warnings;
+      }
    }
 
    chdir($cwd);
