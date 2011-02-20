@@ -34,10 +34,12 @@ sub mod {
       exit 1;
    }
 
-   eval { my $m = $name; $m =~ s{::}{/}g; require "$m.pm"; }; 
-   if(! $@) {
-      print STDERR "$name is already installed.\n";
-      return;
+   unless(exists $opts->{'force'}) {
+      eval { my $m = $name; $m =~ s{::}{/}g; require "$m.pm"; }; 
+      if(! $@) {
+         print STDERR "$name is already installed.\n";
+         return;
+      }
    }
 
    my $rnd = _gen_rnd();
