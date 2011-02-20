@@ -15,10 +15,30 @@ require Exporter;
 use base qw(Exporter);
 
 use vars qw(@EXPORT $install_dir $rex_file_dir);
-use LWP::Simple;
 use Cwd qw(getcwd);
-use YAML;
+use File::Basename qw(basename);
 use Data::Dumper;
+
+my $has_lwp  = 0;
+my $has_yaml = 0;
+my $has_curl = 0;
+my $has_wget = 0;
+
+system("which wget >/dev/null 2>&1");
+$has_wget = !$?;
+
+system("which curl >/dev/null 2>&1");
+$has_curl = !$?;
+
+eval {
+   use LWP::Simple;
+   $has_lwp = 1;
+};
+
+eval {
+   use YAML;
+   $has_yaml = 1;
+};
 
 @EXPORT = qw(mod install_to);
 
@@ -82,7 +102,7 @@ sub install_to {
 sub _lookup_module_url {
    my ($name, $version) = @_;
    my $url = 'http://search.cpan.org/perldoc?' . $name;
-   my $html = get($url);
+   my $html = _get_http($url);
    my ($dl_url) = $html =~ m{<a href="(/CPAN/authors/id/.*?\.(?:tar\.gz|tgz|tar\.bz2|zip))">};
    if($dl_url) {
       return $dl_url;
@@ -91,12 +111,47 @@ sub _lookup_module_url {
    }
 }
 
+sub _get_http {
+   my ($url) = @_;
+
+   my $html;
+   if($has_lwp) {
+      $html = get($url);
+   }
+   elsif($has_curl) {
+      $html = qx{curl -L '$url' 2>/dev/null};
+   }
+   elsif($has_wget) {
+      $html = qx{wget -O - '$url' 2>/dev/null};
+   }
+   else {
+      die("No tool found to download something. (curl, wget, LWP::Simple)");
+   }
+
+   return $html;
+}
+
 sub _download {
    my ($url) = @_;
 
    my $cwd = getcwd;
    chdir(_work_dir());
-   _call("curl -L -O -# http://search.cpan.org$url");
+   if($has_wget) {
+      _call("wget http://search.cpan.org$url >/dev/null 2>&1");
+   }
+   elsif($has_curl) {
+      _call("curl -L -O -# http://search.cpan.org$url >/dev/null 2>&1");
+   }
+   elsif($has_lwp) {
+      my $data = get("http://search.cpan.org$url");
+      open(my $fh, '>', basename($url)) or die($!);
+      binmode $fh;
+      print $fh $data;
+      close($fh);
+   }
+   else {
+      die("No tool found to download something. (curl, wget, LWP::Simple)");
+   }
    chdir($cwd);
 }
 
