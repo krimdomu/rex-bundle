@@ -242,6 +242,8 @@ sub _get_deps {
          print STDERR "Error parseing META.yml :(\n";
          # fallback and try Makefile.PL
          if(-f "Makefile.PL") {
+            no strict 'all';
+            no warnings 'all';
             my $makefile = eval { local(@ARGV, $/) = ("Makefile.PL"); <>; };
             my ($hash_string) = ($makefile =~ m/WriteMakefile\((.*?)\);/ms);
             my $make_hash = eval "{$hash_string}";
@@ -250,6 +252,8 @@ sub _get_deps {
                   push(@ret, $mod);
                }
             }
+            use strict;
+            use warnings;
          }
       }
    } else {
