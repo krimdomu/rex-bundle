@@ -288,7 +288,7 @@ sub _get_deps {
 
    my $found=0;
 
-   if(-f 'META.yml') {
+   if(-f 'META.yml' && $has_yaml) {
       my $yaml = eval { local(@ARGV, $/) = ('META.yml'); $_=<>; $_; };
       eval {
          my $struct = Load($yaml);
