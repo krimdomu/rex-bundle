@@ -253,7 +253,7 @@ sub _get_deps {
 
    if(!$found) {
       if(-f "Makefile.PL") {
-         no strict 'all';
+         no strict;
          no warnings 'all';
          my $makefile = eval { local(@ARGV, $/) = ("Makefile.PL"); <>; };
          my ($hash_string) = ($makefile =~ m/WriteMakefile\((.*?)\);/ms);
