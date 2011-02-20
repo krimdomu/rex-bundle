@@ -12,11 +12,23 @@ L<YAML>
 
 =item *
 
-L<LWP::Simple>
+And one of
+
+=over 4
+
+=item *
+
+L<LWP::Simple> 
 
 =item *
 
 curl
+
+=item *
+
+wget
+
+=back
 
 =back
 
