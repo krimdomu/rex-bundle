@@ -238,7 +238,20 @@ sub _get_deps {
          push(@ret, keys %{$struct->{'requires'}});
       };
 
-      if($@) { print STDERR "Error parseing META.yml :(\n"; }
+      if($@) {
+         print STDERR "Error parseing META.yml :(\n";
+         # fallback and try Makefile.PL
+         if(-f "Makefile.PL") {
+            my $makefile = eval { local(@ARGV, $/) = ("Makefile.PL"); <>; };
+            my ($hash_string) = ($makefile =~ m/WriteMakefile\((.*?)\);/ms);
+            my $make_hash = eval "{$hash_string}";
+            if(exists $make_hash->{"PREREQ_PM"}) {
+               for my $mod (keys %{$make_hash->{"PREREQ_PM"}}) {
+                  push(@ret, $mod);
+               }
+            }
+         }
+      }
    } else {
       # no meta.yml found :(
       print STDERR "No META.yml found :(\n";
