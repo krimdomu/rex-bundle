@@ -17,10 +17,10 @@ use base qw(Exporter);
 use vars qw(@EXPORT $install_dir $rex_file_dir);
 use Cwd qw(getcwd);
 use File::Basename qw(basename);
+use YAML;
 use Data::Dumper;
 
 my $has_lwp  = 0;
-my $has_yaml = 0;
 my $has_curl = 0;
 my $has_wget = 0;
 
@@ -31,13 +31,8 @@ system("which curl >/dev/null 2>&1");
 $has_curl = !$?;
 
 eval {
-   use LWP::Simple;
+   require LWP::Simple;
    $has_lwp = 1;
-};
-
-eval {
-   use YAML;
-   $has_yaml = 1;
 };
 
 @EXPORT = qw(mod install_to);
@@ -288,7 +283,7 @@ sub _get_deps {
 
    my $found=0;
 
-   if(-f 'META.yml' && $has_yaml) {
+   if(-f 'META.yml') {
       my $yaml = eval { local(@ARGV, $/) = ('META.yml'); $_=<>; $_; };
       eval {
          my $struct = Load($yaml);
