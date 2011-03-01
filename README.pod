@@ -8,6 +8,10 @@ rex-bundle is a R?ex module to install needed perl modules into a private folder
 
 =item *
 
+L<version> >=0.77
+
+=item *
+
 L<YAML>
 
 =item *
