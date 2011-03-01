@@ -8,8 +8,9 @@ package Rex::Bundle;
 
 use strict;
 use warnings;
+use version;
 
-our $VERSION = '0.2';
+our $VERSION = '0.2.1';
 
 require Exporter;
 use base qw(Exporter);
@@ -52,10 +53,23 @@ sub mod {
 
    unless(exists $opts->{'force'}) {
       eval { my $m = $name; $m =~ s{::}{/}g; require "$m.pm"; }; 
-      if(! $@) {
+
+      my $installed_version = $name->VERSION;
+
+      if(exists $opts->{"version"}) {
+
+         if( version->parse($installed_version) >= version->parse($opts->{"version"}) && ! $@) {
+            print STDERR "$name is already installed.\n";
+            return;
+         }
+
+      } elsif(! $@) {
+
          print STDERR "$name is already installed.\n";
          return;
+
       }
+
    }
 
    my $rnd = _gen_rnd();
@@ -67,7 +81,7 @@ sub mod {
       $new_dir .= "-$rnd";
       _clone_repo($opts->{'url'}, $new_dir);
    } else {
-      my $mod_url = _lookup_module_url($name);
+      my $mod_url = _lookup_module_url($name, $opts->{"version"});
       _download($mod_url);
 
       ($file_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?\.(?:tar\.gz|tgz|tar\.bz2|zip))};
@@ -78,7 +92,16 @@ sub mod {
       _rename_dir($dir_name, $new_dir);
    }
 
-   { local $_; mod($_) for _get_deps($new_dir); }
+   for my $mod_info (_get_deps($new_dir)) {
+      for my $mod (keys %$mod_info) {
+         unless ($mod_info->{$mod}) {
+            mod($mod);
+         }
+         else {
+            mod($mod, version => $mod_info->{$mod});
+         }
+      }
+   }
 
    _configure($new_dir);
    _make($new_dir);
@@ -100,6 +123,14 @@ sub _lookup_module_url {
    my $url = 'http://search.cpan.org/perldoc?' . $name;
    my $html = _get_http($url);
    my ($dl_url) = $html =~ m{<a href="(/CPAN/authors/id/.*?\.(?:tar\.gz|tgz|tar\.bz2|zip))">};
+
+   if($version) {
+      my ($path, $format) = ($dl_url =~ m{(/CPAN/authors/id/./../[^/]+/).*?\.(tar\.gz|tgz|tar\.bz2|zip)$});
+      my $file_name = $name;
+      $file_name =~ s/::/-/g;
+      $dl_url = $path . $file_name . "-$version.$format";
+   }
+
    if($dl_url) {
       return $dl_url;
    } else {
@@ -134,12 +165,24 @@ sub _download {
    chdir(_work_dir());
    if($has_wget) {
       _call("wget http://search.cpan.org$url >/dev/null 2>&1");
+      unless($? == 0) {
+         print "Failed downloading http://search.cpan.org$url\n";
+         exit 1;
+      }
    }
    elsif($has_curl) {
       _call("curl -L -O -# http://search.cpan.org$url >/dev/null 2>&1");
+      unless($? == 0) {
+         print "Failed downloading http://search.cpan.org$url\n";
+         exit 1;
+      }
    }
    elsif($has_lwp) {
       my $data = get("http://search.cpan.org$url");
+      unless($data) {
+         print "Failed downloading http://search.cpan.org$url\n";
+         exit 1;
+      }
       open(my $fh, '>', basename($url)) or die($!);
       binmode $fh;
       print $fh $data;
@@ -288,9 +331,9 @@ sub _get_deps {
       my $yaml = eval { local(@ARGV, $/) = ('META.yml'); $_=<>; $_; };
       eval {
          my $struct = Load($yaml);
-         push(@ret, keys %{$struct->{'configure_requires'}});
-         push(@ret, keys %{$struct->{'build_requires'}});
-         push(@ret, keys %{$struct->{'requires'}});
+         push(@ret, $struct->{'configure_requires'});
+         push(@ret, $struct->{'build_requires'});
+         push(@ret, $struct->{'requires'});
          $found=1;
       };
 
@@ -312,9 +355,7 @@ sub _get_deps {
          my ($hash_string) = ($makefile =~ m/WriteMakefile\((.*?)\);/ms);
          my $make_hash = eval "{$hash_string}";
          if(exists $make_hash->{"PREREQ_PM"}) {
-            for my $mod (keys %{$make_hash->{"PREREQ_PM"}}) {
-               push(@ret, $mod);
-            }
+            push @ret, $make_hash->{"PREREQ_PM"};
          }
          use strict;
          use warnings;
