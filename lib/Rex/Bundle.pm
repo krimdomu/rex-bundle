@@ -53,6 +53,7 @@ sub mod {
    }
 
    unless(exists $opts->{'force'}) {
+
       eval { my $m = $name; $m =~ s{::}{/}g; require "$m.pm"; }; 
 
       my $installed_version = $name->VERSION;
@@ -82,8 +83,15 @@ sub mod {
       $new_dir .= "-$rnd";
       _clone_repo($opts->{'url'}, $new_dir);
    } else {
-      my $mod_url = _lookup_module_url($name, $opts->{"version"});
-      _download($mod_url);
+      my $version_to_check = $opts->{"version"};
+      my $mod_url;
+      for (1..2) {
+         $mod_url = _lookup_module_url($name, $opts->{"version"});
+         if(_download($mod_url)) {
+            last;
+         }
+         $version_to_check = 0;
+      }
 
       ($file_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?\.(?:tar\.gz|tgz|tar\.bz2|zip))};
       ($dir_name) = $mod_url =~ m{/CPAN/authors/id/.*/(.*?)\.(?:tar\.gz|tgz|tar\.bz2|zip)};
@@ -129,7 +137,7 @@ sub _lookup_module_url {
       my ($path, $format) = ($dl_url =~ m{(/CPAN/authors/id/./../[^/]+/).*?\.(tar\.gz|tgz|tar\.bz2|zip)$});
       my $file_name = $name;
       $file_name =~ s/::/-/g;
-      $dl_url = $path . $file_name . "-$version.$format";
+      my $tmp_dl_url = $path . $file_name . "-$version.$format";
    }
 
    if($dl_url) {
@@ -168,21 +176,21 @@ sub _download {
       _call("wget http://search.cpan.org$url >/dev/null 2>&1");
       unless($? == 0) {
          print "Failed downloading http://search.cpan.org$url\n";
-         exit 1;
+         return 0;
       }
    }
    elsif($has_curl) {
       _call("curl -L -O -# http://search.cpan.org$url >/dev/null 2>&1");
       unless($? == 0) {
          print "Failed downloading http://search.cpan.org$url\n";
-         exit 1;
+         return 0;
       }
    }
    elsif($has_lwp) {
       my $data = get("http://search.cpan.org$url");
       unless($data) {
          print "Failed downloading http://search.cpan.org$url\n";
-         exit 1;
+         return 0;
       }
       open(my $fh, '>', basename($url)) or die($!);
       binmode $fh;
@@ -193,6 +201,8 @@ sub _download {
       die("No tool found to download something. (curl, wget, LWP::Simple)");
    }
    chdir($cwd);
+
+   return 1;
 }
 
 sub _extract_file {
