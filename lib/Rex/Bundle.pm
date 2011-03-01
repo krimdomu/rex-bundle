@@ -114,7 +114,9 @@ sub mod {
 
    _configure($new_dir);
    _make($new_dir);
-   _test($new_dir);
+   unless(exists $opts->{'notest'}) {
+      _test($new_dir);
+   }
    _install($new_dir);
 }
 
@@ -243,7 +245,7 @@ sub _configure {
    if(-f "Build.PL") {
       $cmd = 'perl Build.PL';
    } elsif(-f "Makefile.PL") {
-      $cmd = "perl Makefile.PL PREFIX=$cwd/$install_dir INSTALLPRIVLIB=$cwd/$install_dir INSTALLSITELIB=$cwd/$install_dir INSTALLARCHLIB=$cwd/$install_dir INSTALLVENDORARCH=$cwd/$install_dir";
+      $cmd = "perl Makefile.PL PREFIX=$cwd/$install_dir INSTALLSITEARCH=$cwd/$install_dir INSTALLPRIVLIB=$cwd/$install_dir INSTALLSITELIB=$cwd/$install_dir INSTALLARCHLIB=$cwd/$install_dir INSTALLVENDORARCH=$cwd/$install_dir";
    } else {
       die("not supported");
    }
