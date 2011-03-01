@@ -42,6 +42,7 @@ eval {
 # currently only supports $name
 sub mod {
    my $name = shift;
+   return if $name eq "perl";
    my $opts = { @_ };
    
    $rex_file_dir = getcwd;
