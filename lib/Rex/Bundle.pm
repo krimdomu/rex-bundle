@@ -153,14 +153,14 @@ sub _get_http {
    my ($url) = @_;
 
    my $html;
-   if($has_lwp) {
-      $html = get($url);
-   }
-   elsif($has_curl) {
-      $html = qx{curl -L '$url' 2>/dev/null};
+   if($has_curl) {
+      $html = qx{curl -# -L '$url' 2>/dev/null};
    }
    elsif($has_wget) {
       $html = qx{wget -O - '$url' 2>/dev/null};
+   }
+   elsif($has_lwp) {
+      $html = get($url);
    }
    else {
       die("No tool found to download something. (curl, wget, LWP::Simple)");
