@@ -32,6 +32,7 @@ $has_curl = !$?;
 
 eval {
    require LWP::Simple;
+   LWP::Simple->import;
    $has_lwp = 1;
 };
 
