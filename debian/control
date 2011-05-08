@@ -1,0 +1,12 @@
+Source: rex-bundle
+Section: admin
+Priority: optional
+Maintainer: Jan Gehring <jan.gehring@gmail.com>
+Build-Depends: debhelper (>= 4)
+Standards-Version: 3.5.1
+Homepage: https://github.com/krimdomu/rex-bundle
+
+Package: rex
+Architecture: all
+Depends: perl (>= 5.10.0), rex (>= 0.4.0)
+Description: (R)?ex module for perl module bundling.
