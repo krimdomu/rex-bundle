@@ -56,19 +56,23 @@ sub mod {
 
       eval { my $m = $name; $m =~ s{::}{/}g; require "$m.pm"; }; 
 
-      my $installed_version = $name->VERSION;
+      unless ($@) {
 
-      if(exists $opts->{"version"}) {
+         my $installed_version = $name->VERSION;
 
-         if( version->parse($installed_version) >= version->parse($opts->{"version"}) && ! $@) {
+         if(exists $opts->{"version"}) {
+
+            if( version->parse($installed_version) >= version->parse($opts->{"version"}) && ! $@) {
+               print STDERR "$name is already installed.\n";
+               return;
+            }
+
+         } elsif(! $@) {
+
             print STDERR "$name is already installed.\n";
             return;
+
          }
-
-      } elsif(! $@) {
-
-         print STDERR "$name is already installed.\n";
-         return;
 
       }
 
