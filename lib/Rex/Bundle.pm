@@ -10,7 +10,7 @@ use strict;
 use warnings;
 use version;
 
-our $VERSION = '0.2.1';
+our $VERSION = '0.4.0';
 
 require Exporter;
 use base qw(Exporter);
