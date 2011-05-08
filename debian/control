@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 4)
 Standards-Version: 3.5.1
 Homepage: https://github.com/krimdomu/rex-bundle
 
-Package: rex
+Package: rex-bundle
 Architecture: all
 Depends: perl (>= 5.10.0), rex (>= 0.4.0)
 Description: (R)?ex module for perl module bundling.
