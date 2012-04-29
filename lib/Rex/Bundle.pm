@@ -148,6 +148,10 @@ sub install_to {
    $ENV{'PATH'} = $install_dir . '/bin:' . $ENV{'PATH'};
    $ENV{'PERL5LIB'} = $install_dir . ':' . ( $ENV{'PERL5LIB'} || '' );
    $ENV{'PERLLIB'} = $install_dir . ':' . ( $ENV{'PERLLIB'} || '' );
+
+   my @new_path = split(/:/, $ENV{PATH});
+
+   Rex::Config->set_path(\@new_path);
 }
 
 # private functions
