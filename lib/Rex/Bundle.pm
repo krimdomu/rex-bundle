@@ -21,6 +21,8 @@ use File::Basename qw(basename);
 use YAML;
 use Data::Dumper;
 
+use Rex -base;
+
 my $has_lwp  = 0;
 my $has_curl = 0;
 my $has_wget = 0;
@@ -102,9 +104,30 @@ sub mod {
       $new_dir = $dir_name . "-" . $rnd;
 
       _extract_file($file_name);
+      if(! -d _work_dir() . "/" . $dir_name) {
+         my $dir_wout_version = $dir_name;
+         $dir_wout_version =~ s/\-[\d\.]+$//;
+         if(-d _work_dir() . "/" . $dir_wout_version) {
+            $dir_name = $dir_wout_version;
+         }
+      }
       _rename_dir($dir_name, $new_dir);
    }
 
+   _install_deps($new_dir);
+   _configure($new_dir);
+   _install_deps($new_dir);
+   _configure($new_dir);
+
+   _make($new_dir);
+   unless(exists $opts->{'notest'}) {
+      _test($new_dir);
+   }
+   _install($new_dir);
+}
+
+sub _install_deps {
+   my ($new_dir) = @_;
    for my $mod_info (_get_deps($new_dir)) {
       for my $mod (keys %$mod_info) {
          unless ($mod_info->{$mod}) {
@@ -116,12 +139,7 @@ sub mod {
       }
    }
 
-   _configure($new_dir);
-   _make($new_dir);
-   unless(exists $opts->{'notest'}) {
-      _test($new_dir);
-   }
-   _install($new_dir);
+
 }
 
 sub install_to {
@@ -247,9 +265,9 @@ sub _configure {
 
    my $cmd;
    if(-f "Build.PL") {
-      $cmd = 'perl Build.PL';
+      $cmd = 'yes "" | perl Build.PL';
    } elsif(-f "Makefile.PL") {
-      $cmd = "perl Makefile.PL PREFIX=$cwd/$install_dir INSTALLSITEARCH=$cwd/$install_dir INSTALLPRIVLIB=$cwd/$install_dir INSTALLSITELIB=$cwd/$install_dir INSTALLARCHLIB=$cwd/$install_dir INSTALLVENDORARCH=$cwd/$install_dir";
+      $cmd = "yes '' | perl Makefile.PL PREFIX=$cwd/$install_dir INSTALLSITEARCH=$cwd/$install_dir INSTALLPRIVLIB=$cwd/$install_dir INSTALLSITELIB=$cwd/$install_dir INSTALLARCHLIB=$cwd/$install_dir INSTALLVENDORARCH=$cwd/$install_dir";
    } else {
       die("not supported");
    }
@@ -344,8 +362,11 @@ sub _get_deps {
 
    my $found=0;
 
-   if(-f 'META.yml') {
-      my $yaml = eval { local(@ARGV, $/) = ('META.yml'); $_=<>; $_; };
+   my $meta_file = "META.yml";
+   if(-f "MYMETA.yml") { $meta_file = "MYMETA.yml"; }
+
+   if(-f $meta_file) {
+      my $yaml = eval { local(@ARGV, $/) = ($meta_file); $_=<>; $_; };
       eval {
          my $struct = Load($yaml);
          push(@ret, $struct->{'configure_requires'});
