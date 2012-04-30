@@ -35,7 +35,6 @@ $has_curl = !$?;
 
 eval {
    require LWP::Simple;
-   LWP::Simple->import;
    $has_lwp = 1;
 };
 
@@ -186,7 +185,7 @@ sub _get_http {
       $html = qx{wget -O - '$url' 2>/dev/null};
    }
    elsif($has_lwp) {
-      $html = get($url);
+      $html = LWP::Simple::get($url);
    }
    else {
       die("No tool found to download something. (curl, wget, LWP::Simple)");
@@ -215,7 +214,7 @@ sub _download {
       }
    }
    elsif($has_lwp) {
-      my $data = get("http://search.cpan.org$url");
+      my $data = LWP::Simple::get("http://search.cpan.org$url");
       unless($data) {
          print "Failed downloading http://search.cpan.org$url\n";
          return 0;
