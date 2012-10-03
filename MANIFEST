@@ -1,2 +1,5 @@
 lib/Rex/Bundle.pm
 Makefile.PL
+MYMETA.json
+MYMETA.yml
+t/base.t
