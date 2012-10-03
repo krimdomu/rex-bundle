@@ -4,13 +4,54 @@
 # vim: set ts=3 sw=3 tw=0:
 # vim: set expandtab:
 
+=head1 NAME
+
+Rex::Bundle - Bundle Perl Libraries
+
+=head1 DESCRIPTION
+
+Rex::Bundle is a Rex module to install needed perl modules into a private folder separated from the system librarys.
+
+=head1 GETTING HELP
+
+=over 4
+
+=item * IRC: irc.freenode.net #rex
+
+=item * Wiki: L<https://github.com/krimdomu/rex-bundle/wiki>
+
+=item * Bug Tracker: L<https://github.com/krimdomu/rex-bundle/issues>
+
+=back
+
+=head1 USAGE
+
+Create a I<Rexfile> in your project directory and add the following content to it:
+
+ install_to 'vendor/perl'
+    
+ desc "Check and install dependencies";
+ task "deps", sub {
+    mod "Mod1", url => "git://...";
+    mod "Foo::Bar";
+    # ...
+ };
+
+Now you can check if all dependencies are met (and if not, it will install the needed modules) with I<rex deps>.
+
+After you've installed the dependencies you can use them by appending the I<install_to> directory to @INC.
+
+ use lib "vendor/perl";
+
+=cut
+
 package Rex::Bundle;
 
 use strict;
 use warnings;
 use version;
 
-our $VERSION = '0.4.0';
+our $VERSION = '0.5.0';
 
 require Exporter;
 use base qw(Exporter);
@@ -37,7 +78,7 @@ eval {
    $has_lwp = 1;
 };
 
-@EXPORT = qw(mod install_to);
+@EXPORT = qw(mod install_to perl);
 
 # currently only supports $name
 sub mod {
@@ -130,6 +171,19 @@ sub install_to {
    $ENV{'PATH'} = $install_dir . '/bin:' . $ENV{'PATH'};
    $ENV{'PERL5LIB'} = $install_dir . ':' . ( $ENV{'PERL5LIB'} || '' );
    $ENV{'PERLLIB'} = $install_dir . ':' . ( $ENV{'PERLLIB'} || '' );
+}
+
+sub perl {
+   my $cmd = "";
+
+   $cmd .= "PERL5LIB=$install_dir" . ':' . ( $ENV{'PERL5LIB'} || '' );
+   $cmd .= "PERLLIB=$install_dir" . ':' . ( $ENV{'PERLLIB'} || '' );
+
+   $cmd .= " " . join(" ", @_);
+
+   Rex::Logger::debug("executing: $cmd");
+
+   system $cmd;
 }
 
 # private functions
